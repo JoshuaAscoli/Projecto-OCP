@@ -1,0 +1,21 @@
+CREATE TABLE IF NOT EXISTS usuarios (
+  id SERIAL PRIMARY KEY,
+  nombre VARCHAR(100) NOT NULL,
+  apellido VARCHAR(100) NOT NULL,
+  correo VARCHAR(255) UNIQUE NOT NULL,
+  edad INTEGER NOT NULL,
+  password_hash VARCHAR(255) NOT NULL,
+  verificado BOOLEAN NOT NULL DEFAULT FALSE,
+  fecha_creacion TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE TABLE IF NOT EXISTS tokens_verificacion (
+  id SERIAL PRIMARY KEY,
+  usuario_id INTEGER NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  token VARCHAR(255) UNIQUE NOT NULL,
+  expira_en TIMESTAMP NOT NULL,
+  usado BOOLEAN NOT NULL DEFAULT FALSE,
+  fecha_creacion TIMESTAMP NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS idx_tokens_token ON tokens_verificacion(token);
