@@ -35,15 +35,19 @@ function validar(form: FormState): Errores {
     errores.correo = "Ingresa un correo válido.";
   }
 
-  const edadNum = Number(form.edad);
-  if (!form.edad || isNaN(edadNum) || edadNum < 13 || edadNum > 120) {
-    errores.edad = "La edad debe estar entre 13 y 120 años.";
+    const edadNum = Number(form.edad);
+  if (!form.edad || isNaN(edadNum) || edadNum < 18 || edadNum > 100) {
+    errores.edad = "Debes tener entre 18 y 100 años para registrarte.";
   }
 
-  if (form.password.length < 8) {
-    errores.password = "La contraseña debe tener al menos 8 caracteres.";
-  } else if (!/[A-Z]/.test(form.password) || !/[0-9]/.test(form.password)) {
-    errores.password = "Incluye al menos una mayúscula y un número.";
+  if (form.password.length < 10) {
+    errores.password = "La contraseña debe tener al menos 10 caracteres.";
+  } else if (
+    !/[A-Z]/.test(form.password) ||
+    !/[0-9]/.test(form.password) ||
+    !/[^A-Za-z0-9]/.test(form.password)
+  ) {
+    errores.password = "Incluye una mayúscula, un número y un símbolo.";
   }
 
   if (form.confirmarPassword !== form.password) {
@@ -181,7 +185,7 @@ export default function RegistroForm() {
           onChange={(v) => actualizarCampo("password", v)}
           error={errores.password}
           autoComplete="new-password"
-          hint="Mínimo 8 caracteres, con una mayúscula y un número."
+            hint="Mínimo 10 caracteres, con mayúscula, número y símbolo."
         />
 
         <Campo

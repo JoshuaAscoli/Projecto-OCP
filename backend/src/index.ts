@@ -26,13 +26,16 @@ app.post("/api/registro", async (req: Request, res: Response) => {
   if (!correoRegex.test(correo)) {
     return res.status(400).json({ mensaje: "Correo invalido." });
   }
-  if (Number(edad) < 13 || Number(edad) > 120) {
-    return res.status(400).json({ mensaje: "Edad fuera de rango." });
+    if (Number(edad) < 18 || Number(edad) > 100) {
+    return res.status(400).json({ mensaje: "La edad debe estar entre 18 y 100." });
   }
-  if (password.length < 8) {
-    return res
-      .status(400)
-      .json({ mensaje: "La contraseña debe tener al menos 8 caracteres." });
+
+  const passwordFuerte = /^(?=.*[A-Z])(?=.*\d)(?=.*[^A-Za-z0-9]).{10,}$/;
+  if (!passwordFuerte.test(password)) {
+    return res.status(400).json({
+      mensaje:
+        "La contraseña debe tener 10+ caracteres, una mayúscula, un número y un símbolo.",
+    });
   }
 
   try {
