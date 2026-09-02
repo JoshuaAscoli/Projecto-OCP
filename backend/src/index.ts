@@ -3,13 +3,17 @@ import cors from "cors";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import dotenv from "dotenv";
-import { pool } from "./db";
+import { obtenerRepositorio } from "./db";
 import { enviarCorreoVerificacion } from "./mailer";
 
 dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 4000;
+
+// La aplicacion depende del contrato RepositorioUsuarios,
+// no de Postgres ni de SQLite. La fabrica decide segun DB_ENGINE.
+const repo = obtenerRepositorio();
 
 app.use(cors({ origin: process.env.FRONTEND_URL || "*" }));
 app.use(express.json());
@@ -26,7 +30,7 @@ app.post("/api/registro", async (req: Request, res: Response) => {
   if (!correoRegex.test(correo)) {
     return res.status(400).json({ mensaje: "Correo invalido." });
   }
-    if (Number(edad) < 18 || Number(edad) > 100) {
+  if (Number(edad) < 18 || Number(edad) > 100) {
     return res.status(400).json({ mensaje: "La edad debe estar entre 18 y 100." });
   }
 
@@ -39,32 +43,24 @@ app.post("/api/registro", async (req: Request, res: Response) => {
   }
 
   try {
-    const existente = await pool.query(
-      "SELECT id FROM usuarios WHERE correo = $1",
-      [correo]
-    );
-    if (existente.rows.length > 0) {
+    if (await repo.existeCorreo(correo)) {
       return res.status(409).json({ mensaje: "Ese correo ya esta registrado." });
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
 
-    const resultado = await pool.query(
-      `INSERT INTO usuarios (nombre, apellido, correo, edad, password_hash, verificado)
-       VALUES ($1, $2, $3, $4, $5, false)
-       RETURNING id`,
-      [nombre, apellido, correo, edad, passwordHash]
-    );
-    const usuarioId = resultado.rows[0].id;
+    const usuarioId = await repo.crearUsuario({
+      nombre,
+      apellido,
+      correo,
+      edad: Number(edad),
+      passwordHash,
+    });
 
     const token = crypto.randomBytes(32).toString("hex");
     const expiraEn = new Date(Date.now() + 24 * 60 * 60 * 1000); // 24 horas
 
-    await pool.query(
-      `INSERT INTO tokens_verificacion (usuario_id, token, expira_en)
-       VALUES ($1, $2, $3)`,
-      [usuarioId, token, expiraEn]
-    );
+    await repo.guardarToken(usuarioId, token, expiraEn);
 
     await enviarCorreoVerificacion(correo, nombre, token);
 
@@ -86,31 +82,20 @@ app.get("/api/verificar", async (req: Request, res: Response) => {
   }
 
   try {
-    const resultado = await pool.query(
-      `SELECT id, usuario_id, expira_en, usado FROM tokens_verificacion WHERE token = $1`,
-      [token]
-    );
+    const registro = await repo.buscarToken(token);
 
-    if (resultado.rows.length === 0) {
+    if (!registro) {
       return res.status(404).json({ mensaje: "Token no encontrado." });
     }
-
-    const tokenRow = resultado.rows[0];
-
-    if (tokenRow.usado) {
+    if (registro.usado) {
       return res.status(400).json({ mensaje: "Este token ya fue usado." });
     }
-    if (new Date(tokenRow.expira_en) < new Date()) {
+    if (registro.expiraEn < new Date()) {
       return res.status(400).json({ mensaje: "Este token ya expiro." });
     }
 
-    await pool.query("UPDATE usuarios SET verificado = true WHERE id = $1", [
-      tokenRow.usuario_id,
-    ]);
-    await pool.query(
-      "UPDATE tokens_verificacion SET usado = true WHERE id = $1",
-      [tokenRow.id]
-    );
+    await repo.marcarUsuarioVerificado(registro.usuarioId);
+    await repo.marcarTokenUsado(registro.id);
 
     return res.json({ mensaje: "Cuenta verificada correctamente." });
   } catch (error) {
