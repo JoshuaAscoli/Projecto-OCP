@@ -6,6 +6,3 @@ Primera entrega:
 Colaboradores: 
 - Joshua Ascoli 1515522
 - Diego Afre 1594422
-
-
-Hola Buenas noches Espero que esten muy bien
